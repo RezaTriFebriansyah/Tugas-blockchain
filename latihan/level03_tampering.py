@@ -1,23 +1,34 @@
 """
-LEVEL 3 — Eksperimen Tampering (Pemalsuan Data)
-Versi perbaikan: semua fungsi TODO telah dilengkapi.
+LEVEL 3 — Eksperimen Tampering (Pemalsuan Data) (LATIHAN)
+===============================================================
+
+Pada level ini blok punya field `data`. Kita akan:
+  1. Mengubah isi sebuah blok di tengah rantai.
+  2. Mendeteksi blok mana yang "putus" tautannya.
+  3. Menyambung ulang tautan (re-link) TANPA mengulang Proof of Work —
+     dan melihat bahwa rantai versi GfG kembali dianggap VALID!
+
+Temuan nomor 3 adalah kelemahan desain PoW di artikel GfG: proof tidak
+bergantung pada isi blok. Kelemahan ini akan diperbaiki di Level 5.
+
+Jalankan tes:  python cek_nilai.py 3
 """
+
 import copy
 import datetime
 import hashlib
 import json
 
 
+# ====================== SUDAH DISEDIAKAN ======================
 def hash_blok(block: dict) -> str:
-    return hashlib.sha256(json.dumps(block, sort_keys=True).encode("utf-8")).hexdigest()
+    return hashlib.sha256(json.dumps(block, sort_keys=True).encode()).hexdigest()
 
 
 class Blockchain:
-    """Blockchain gaya GfG + field data."""
+    """Blockchain gaya GfG + field `data`."""
 
     def __init__(self, difficulty: int = 3):
-        if not isinstance(difficulty, int) or difficulty < 1 or difficulty > 6:
-            raise ValueError("difficulty harus berupa bilangan bulat 1 sampai 6 untuk latihan ini")
         self.difficulty = difficulty
         self.chain = []
         self.create_block(proof=1, previous_hash="0", data="GENESIS")
@@ -34,7 +45,7 @@ class Blockchain:
         return block
 
     def valid_proof(self, previous_proof, proof):
-        h = hashlib.sha256(str(proof**2 - previous_proof**2).encode("utf-8")).hexdigest()
+        h = hashlib.sha256(str(proof**2 - previous_proof**2).encode()).hexdigest()
         return h.startswith("0" * self.difficulty)
 
     def mine_block(self, data):
@@ -45,36 +56,44 @@ class Blockchain:
         return self.create_block(proof, hash_blok(prev), data)
 
     def chain_valid(self, chain):
-        if not isinstance(chain, list) or len(chain) == 0:
-            return False
         for i in range(1, len(chain)):
-            if chain[i].get("previous_hash") != hash_blok(chain[i - 1]):
+            if chain[i]["previous_hash"] != hash_blok(chain[i - 1]):
                 return False
-            if not self.valid_proof(chain[i - 1].get("proof"), chain[i].get("proof")):
+            if not self.valid_proof(chain[i - 1]["proof"], chain[i]["proof"]):
                 return False
         return True
 
 
+# ============ BAGIAN YANG DIKERJAKAN (isi semua TODO) ============
 def ubah_blok(chain: list, posisi: int, field: str, nilai) -> list:
-    """Kembalikan salinan rantai; rantai asli tidak berubah."""
+    """Kembalikan SALINAN rantai di mana chain[posisi][field] diganti `nilai`.
+
+    Rantai asli TIDAK boleh berubah (gunakan copy.deepcopy).
+    `posisi` adalah indeks list (0 = genesis).
+    """
     palsu = copy.deepcopy(chain)
     palsu[posisi][field] = nilai
     return palsu
 
 
 def cari_tautan_putus(chain: list):
-    """Kembalikan indeks pertama dengan previous_hash yang tidak cocok, atau None."""
+    """Kembalikan indeks list PERTAMA i (i >= 1) di mana
+    chain[i]['previous_hash'] != hash_blok(chain[i-1]).
+    Kembalikan None jika semua tautan utuh.
+    """
     for i in range(1, len(chain)):
-        if chain[i].get("previous_hash") != hash_blok(chain[i - 1]):
+        if chain[i]["previous_hash"] != hash_blok(chain[i - 1]):
             return i
     return None
 
 
 def sambung_ulang(chain: list, mulai: int) -> list:
-    """Salin rantai dan hitung ulang previous_hash mulai indeks yang diminta."""
+    """Kembalikan SALINAN rantai di mana previous_hash setiap blok mulai
+    dari indeks `mulai` dihitung ulang dari blok sebelumnya (berurutan).
+    Proof TIDAK diubah.
+    """
     baru = copy.deepcopy(chain)
-    mulai = max(1, mulai)
-    for i in range(mulai, len(baru)):
+    for i in range(max(1, mulai), len(baru)):
         baru[i]["previous_hash"] = hash_blok(baru[i - 1])
     return baru
 
